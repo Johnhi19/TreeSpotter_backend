@@ -55,12 +55,7 @@ func InsertOneMeadow(meadow models.Meadow) interface{} {
 
 	collection := client.Database("TreeSpotter").Collection("Meadow")
 
-	// Convert Meadow struct to BSON document
-	meadowDoc := bson.D{
-		{"ID", meadow.ID},
-		{"Name", meadow.Name},
-		{"NumberTrees", meadow.NumberTrees},
-	}
+	meadowDoc := models.TransformMeadowToBson(meadow)
 
 	result, err := collection.InsertOne(context.TODO(), meadowDoc)
 
@@ -74,12 +69,14 @@ func InsertOneMeadow(meadow models.Meadow) interface{} {
 	return result.InsertedID
 }
 
-func InsertOneTree(tree bson.D) {
+func InsertOneTree(tree models.Tree) interface{} {
 	Connect("credentials.txt")
 
 	collection := client.Database("TreeSpotter").Collection("Tree")
 
-	result, err := collection.InsertOne(context.TODO(), tree)
+	treeDoc := models.TransformTreeToBson(tree)
+
+	result, err := collection.InsertOne(context.TODO(), treeDoc)
 
 	if err != nil {
 		panic(err)
@@ -88,6 +85,7 @@ func InsertOneTree(tree bson.D) {
 	fmt.Println("Inserted a meadow with ID:", result.InsertedID)
 	Disconnect()
 
+	return result.InsertedID
 }
 
 func FindOneMeadowById(filter bson.D) bson.M {
@@ -106,7 +104,7 @@ func FindOneMeadowById(filter bson.D) bson.M {
 	return result
 }
 
-func FindOneTree(filter bson.D) {
+func FindOneTree(filter bson.D) bson.M {
 	Connect("credentials.txt")
 
 	collection := client.Database("TreeSpotter").Collection("Tree")
@@ -118,6 +116,8 @@ func FindOneTree(filter bson.D) {
 
 	fmt.Println("Found tree:", result)
 	Disconnect()
+
+	return result
 }
 
 func Disconnect() {

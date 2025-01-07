@@ -8,11 +8,11 @@ type Meadow struct {
 	NumberTrees int    `json:"numberTrees"`
 }
 
-func TransformToBson(meadow Meadow) bson.D {
+func TransformMeadowToBson(meadow Meadow) bson.D {
 	return bson.D{
-		{"ID", meadow.ID},
-		{"Name", meadow.Name},
-		{"NumberTrees", meadow.NumberTrees},
+		{Key: "ID", Value: meadow.ID},
+		{Key: "Name", Value: meadow.Name},
+		{Key: "NumberTrees", Value: meadow.NumberTrees},
 	}
 
 }
