@@ -14,11 +14,17 @@ func main() {
 	router := gin.Default()
 
 	router.GET("/meadows/:id", findMeadowByID)
+	router.GET("/meadows", getBasicInfoOfAllMeadows)
 	router.POST("/meadows", insertMeadow)
 	router.GET("/trees/:id", findTreeByID)
 	router.POST("/trees", insertTree)
 
 	router.Run("localhost:8080")
+}
+
+func getBasicInfoOfAllMeadows(c *gin.Context) {
+	meadows := db.FindAllMeadows()
+	c.IndentedJSON(http.StatusOK, meadows)
 }
 
 func insertMeadow(c *gin.Context) {

@@ -50,6 +50,26 @@ func Connect(txtFile string) {
 	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
 }
 
+func FindAllMeadows() []bson.M {
+	Connect("credentials.txt")
+
+	collection := client.Database("TreeSpotter").Collection("Meadow")
+	cursor, err := collection.Find(context.TODO(), bson.D{})
+	if err != nil {
+		panic(err)
+	}
+
+	var meadows []bson.M
+	if err = cursor.All(context.Background(), &meadows); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Found meadows:", meadows)
+	Disconnect()
+
+	return meadows
+}
+
 func InsertOneMeadow(meadow models.Meadow) interface{} {
 	Connect("credentials.txt")
 
