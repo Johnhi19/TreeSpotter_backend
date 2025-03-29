@@ -2,7 +2,10 @@ package main
 
 import (
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	"github.com/Johnhi19/TreeSpotter_backend/db"
 	"github.com/Johnhi19/TreeSpotter_backend/models"
@@ -11,20 +14,50 @@ import (
 )
 
 func main() {
+	db.Connect("credentials.txt")
+	defer db.Disconnect()
+
 	router := gin.Default()
 
 	router.GET("/meadows/:id", findMeadowByID)
 	router.GET("/meadows", getBasicInfoOfAllMeadows)
 	router.POST("/meadows", insertMeadow)
+	router.GET("/meadows/:id/trees", getTreesOfMeadow)
 	router.GET("/trees/:id", findTreeByID)
 	router.POST("/trees", insertTree)
 
 	router.Run("localhost:8080")
+
+	go func() {
+		if err := router.Run("localhost:8080"); err != nil {
+			panic(err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	db.Disconnect()
 }
 
 func getBasicInfoOfAllMeadows(c *gin.Context) {
 	meadows := db.FindAllMeadows()
 	c.IndentedJSON(http.StatusOK, meadows)
+}
+
+func getTreesOfMeadow(c *gin.Context) {
+	meadowId := c.Param("id")
+
+	intID, err := strconv.Atoi(meadowId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	filter := bson.D{{Key: "MeadowId", Value: intID}}
+	trees := db.FindAllTreesForMeadow(filter)
+	c.IndentedJSON(http.StatusOK, trees)
 }
 
 func insertMeadow(c *gin.Context) {

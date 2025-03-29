@@ -51,8 +51,6 @@ func Connect(txtFile string) {
 }
 
 func FindAllMeadows() []bson.M {
-	Connect("credentials.txt")
-
 	collection := client.Database("TreeSpotter").Collection("Meadow")
 	cursor, err := collection.Find(context.TODO(), bson.D{})
 	if err != nil {
@@ -65,14 +63,26 @@ func FindAllMeadows() []bson.M {
 	}
 
 	fmt.Println("Found meadows:", meadows)
-	Disconnect()
-
 	return meadows
 }
 
-func InsertOneMeadow(meadow models.Meadow) interface{} {
-	Connect("credentials.txt")
+func FindAllTreesForMeadow(filter bson.D) []bson.M {
+	collection := client.Database("TreeSpotter").Collection("Tree")
+	cursor, err := collection.Find(context.TODO(), filter)
+	if err != nil {
+		panic(err)
+	}
 
+	var trees []bson.M
+	if err = cursor.All(context.Background(), &trees); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Found trees:", trees)
+	return trees
+}
+
+func InsertOneMeadow(meadow models.Meadow) interface{} {
 	collection := client.Database("TreeSpotter").Collection("Meadow")
 
 	meadowDoc := models.TransformMeadowToBson(meadow)
@@ -84,14 +94,10 @@ func InsertOneMeadow(meadow models.Meadow) interface{} {
 	}
 
 	fmt.Println("Inserted a meadow with ID:", result.InsertedID)
-	Disconnect()
-
 	return result.InsertedID
 }
 
 func InsertOneTree(tree models.Tree) interface{} {
-	Connect("credentials.txt")
-
 	collection := client.Database("TreeSpotter").Collection("Tree")
 
 	treeDoc := models.TransformTreeToBson(tree)
@@ -103,14 +109,10 @@ func InsertOneTree(tree models.Tree) interface{} {
 	}
 
 	fmt.Println("Inserted a meadow with ID:", result.InsertedID)
-	Disconnect()
-
 	return result.InsertedID
 }
 
 func FindOneMeadowById(filter bson.D) bson.M {
-	Connect("credentials.txt")
-
 	collection := client.Database("TreeSpotter").Collection("Meadow")
 	var result bson.M
 	err := collection.FindOne(context.TODO(), filter).Decode(&result)
@@ -119,14 +121,10 @@ func FindOneMeadowById(filter bson.D) bson.M {
 	}
 
 	fmt.Println("Found meadow:", result)
-	Disconnect()
-
 	return result
 }
 
 func FindOneTree(filter bson.D) bson.M {
-	Connect("credentials.txt")
-
 	collection := client.Database("TreeSpotter").Collection("Tree")
 	var result bson.M
 	err := collection.FindOne(context.TODO(), filter).Decode(&result)
@@ -135,8 +133,6 @@ func FindOneTree(filter bson.D) bson.M {
 	}
 
 	fmt.Println("Found tree:", result)
-	Disconnect()
-
 	return result
 }
 
