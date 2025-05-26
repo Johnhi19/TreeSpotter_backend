@@ -10,11 +10,10 @@ import (
 	"github.com/Johnhi19/TreeSpotter_backend/db"
 	"github.com/Johnhi19/TreeSpotter_backend/models"
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 func main() {
-	db.Connect("credentials.txt")
+	db.Connect("credentialsMySql.txt")
 	defer db.Disconnect()
 
 	router := gin.Default()
@@ -55,8 +54,7 @@ func getTreesOfMeadow(c *gin.Context) {
 		return
 	}
 
-	filter := bson.D{{Key: "MeadowId", Value: intID}}
-	trees := db.FindAllTreesForMeadow(filter)
+	trees := db.FindAllTreesForMeadow(intID)
 	c.IndentedJSON(http.StatusOK, trees)
 }
 
@@ -85,8 +83,7 @@ func findMeadowByID(c *gin.Context) {
 		return
 	}
 
-	filter := bson.D{{Key: "ID", Value: intID}}
-	meadow := db.FindOneMeadowById(filter)
+	meadow := db.FindOneMeadowById(intID)
 	c.IndentedJSON(http.StatusOK, meadow)
 }
 
@@ -115,7 +112,6 @@ func findTreeByID(c *gin.Context) {
 		return
 	}
 
-	filter := bson.D{{Key: "ID", Value: intID}}
-	tree := db.FindOneTree(filter)
+	tree := db.FindOneTreeById(intID)
 	c.IndentedJSON(http.StatusOK, tree)
 }

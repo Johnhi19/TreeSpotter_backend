@@ -2,18 +2,19 @@ package db
 
 import (
 	"bufio"
-	"context"
+	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
 	"github.com/Johnhi19/TreeSpotter_backend/models"
-	"go.mongodb.org/mongo-driver/bson"
+	_ "github.com/go-sql-driver/mysql"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var client *mongo.Client
+var db *sql.DB
 
 func Connect(txtFile string) {
 	file, err := os.Open(txtFile)
@@ -32,113 +33,127 @@ func Connect(txtFile string) {
 		panic(err)
 	}
 
-	// Use the SetServerAPIOptions() method to set the version of the Stable API on the client
-	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
-	uri := fmt.Sprintf("mongodb+srv://%s:%s@cluster0.rpy40.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0", username, password)
-	opts := options.Client().ApplyURI(uri).SetServerAPIOptions(serverAPI)
-
-	// Create a new client and connect to the server
-	client, err = mongo.Connect(context.TODO(), opts)
+	// MySQL connection string: username:password@tcp(host:port)/database
+	dsn := fmt.Sprintf("%s:%s@tcp(localhost:3306)/treeSpotter", username, password)
+	db, err = sql.Open("mysql", dsn)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	// Send a ping to confirm a successful connection
-	if err := client.Database("admin").RunCommand(context.TODO(), bson.D{{"ping", 1}}).Err(); err != nil {
-		panic(err)
+	// Test the connection
+	if err := db.Ping(); err != nil {
+		log.Fatal(err)
 	}
-	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
+
+	fmt.Println("Connected to MySQL!")
 }
 
-func FindAllMeadows() []bson.M {
-	collection := client.Database("TreeSpotter").Collection("Meadow")
-	cursor, err := collection.Find(context.TODO(), bson.D{})
+func FindAllMeadows() []models.Meadow {
+	var meadows []models.Meadow
+
+	rows, err := db.Query("SELECT * FROM Meadow")
 	if err != nil {
 		panic(err)
 	}
+	defer rows.Close()
 
-	var meadows []bson.M
-	if err = cursor.All(context.Background(), &meadows); err != nil {
+	for rows.Next() {
+		var med models.Meadow
+		if err := rows.Scan(&med.ID, &med.Name, &med.TreeIds, &med.Size, &med.Location); err != nil {
+			panic(err)
+		}
+		meadows = append(meadows, med)
+	}
+	if err := rows.Err(); err != nil {
 		panic(err)
 	}
-
-	fmt.Println("Found meadows:", meadows)
 	return meadows
 }
 
-func FindAllTreesForMeadow(filter bson.D) []bson.M {
-	collection := client.Database("TreeSpotter").Collection("Tree")
-	cursor, err := collection.Find(context.TODO(), filter)
+func FindAllTreesForMeadow(meadowId int) []models.Tree {
+	var trees []models.Tree
+
+	rows, err := db.Query("SELECT * FROM Tree WHERE MeadowId = ?", meadowId)
 	if err != nil {
 		panic(err)
 	}
+	defer rows.Close()
 
-	var trees []bson.M
-	if err = cursor.All(context.Background(), &trees); err != nil {
+	for rows.Next() {
+		var tree models.Tree
+		if err := rows.Scan(&tree.ID, &tree.Type, &tree.Age, &tree.MeadowId, &tree.Position); err != nil {
+			panic(err)
+		}
+		trees = append(trees, tree)
+	}
+	if err := rows.Err(); err != nil {
 		panic(err)
 	}
-
-	fmt.Println("Found trees:", trees)
 	return trees
 }
 
-func InsertOneMeadow(meadow models.Meadow) interface{} {
-	collection := client.Database("TreeSpotter").Collection("Meadow")
-
-	meadowDoc := models.TransformMeadowToBson(meadow)
-
-	result, err := collection.InsertOne(context.TODO(), meadowDoc)
-
+func InsertOneMeadow(meadow models.Meadow) any {
+	result, err := db.Exec("INSERT INTO Meadow (Name, TreeIds, Size, Location) VALUES (?, ?, ?, ?)",
+		meadow.Name, meadow.TreeIds, meadow.Size, meadow.Location)
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Println("Inserted a meadow with ID:", result.InsertedID)
-	return result.InsertedID
+	id, err := result.LastInsertId()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Inserted a meadow with ID:", id)
+	return id
 }
 
-func InsertOneTree(tree models.Tree) interface{} {
-	collection := client.Database("TreeSpotter").Collection("Tree")
-
-	treeDoc := models.TransformTreeToBson(tree)
-
-	result, err := collection.InsertOne(context.TODO(), treeDoc)
-
+func InsertOneTree(tree models.Tree) any {
+	result, err := db.Exec("INSERT INTO Tree (Type, Age, MeadowId, Position) VALUES (?, ?, ?, ?)",
+		tree.Type, tree.Age, tree.MeadowId, tree.Position)
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Println("Inserted a meadow with ID:", result.InsertedID)
-	return result.InsertedID
+	id, err := result.LastInsertId()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Inserted a tree with ID:", id)
+	return id
 }
 
-func FindOneMeadowById(filter bson.D) bson.M {
-	collection := client.Database("TreeSpotter").Collection("Meadow")
-	var result bson.M
-	err := collection.FindOne(context.TODO(), filter).Decode(&result)
-	if err != nil {
+func FindOneMeadowById(meadowId int) models.Meadow {
+	var meadow models.Meadow
+
+	row := db.QueryRow("SELECT * FROM Meadow WHERE ID = ?", meadowId)
+	if err := row.Scan(&meadow.ID, &meadow.Name, &meadow.TreeIds, &meadow.Size, &meadow.Location); err != nil {
+		if err == sql.ErrNoRows {
+			fmt.Println("No meadow found with ID:", meadowId)
+			return meadow
+		}
 		panic(err)
 	}
-
-	fmt.Println("Found meadow:", result)
-	return result
+	fmt.Println("Found meadow:", meadow)
+	return meadow
 }
 
-func FindOneTree(filter bson.D) bson.M {
-	collection := client.Database("TreeSpotter").Collection("Tree")
-	var result bson.M
-	err := collection.FindOne(context.TODO(), filter).Decode(&result)
-	if err != nil {
+func FindOneTreeById(treeId int) models.Tree {
+	var tree models.Tree
+
+	row := db.QueryRow("SELECT * FROM Tree WHERE ID = ?", treeId)
+	if err := row.Scan(&tree.ID, &tree.Type, &tree.Age, &tree.MeadowId, &tree.Position); err != nil {
+		if err == sql.ErrNoRows {
+			fmt.Println("No tree found with ID:", treeId)
+			return tree
+		}
 		panic(err)
 	}
-
-	fmt.Println("Found tree:", result)
-	return result
+	fmt.Println("Found tree:", tree)
+	return tree
 }
 
 func Disconnect() {
-	if err := client.Disconnect(context.TODO()); err != nil {
-		panic(err)
+	if err := db.Close(); err != nil {
+		log.Fatal("Error closing database connection:", err)
+	} else {
+		fmt.Println("Database connection closed.")
 	}
-	fmt.Println("Disconnected from MongoDB!")
 }
