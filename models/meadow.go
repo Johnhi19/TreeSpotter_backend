@@ -1,24 +1,24 @@
 package models
 
 import (
-	"go.mongodb.org/mongo-driver/bson"
+	"encoding/json"
+	"fmt"
 )
 
+type IntSlize []int
+
 type Meadow struct {
-	ID       int    `json:"id"`
-	Name     string `json:"name"`
-	TreeIds  []int  `json:"treeIds"`
-	Size     []int  `json:"size"`
-	Location string `json:"location"`
+	ID       int      `json:"id"`
+	Location string   `json:"location"`
+	Name     string   `json:"name"`
+	Size     IntSlize `json:"size"`
+	TreeIds  IntSlize `json:"treeIds"`
 }
 
-func TransformMeadowToBson(meadow Meadow) bson.D {
-	return bson.D{
-		{Key: "ID", Value: meadow.ID},
-		{Key: "Name", Value: meadow.Name},
-		{Key: "TreeIds", Value: meadow.TreeIds},
-		{Key: "Size", Value: meadow.Size},
-		{Key: "Location", Value: meadow.Location},
+func (s *IntSlize) Scan(value any) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to convert DB value to []byte")
 	}
-
+	return json.Unmarshal(bytes, s)
 }

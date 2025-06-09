@@ -1,6 +1,10 @@
 package models
 
-import "go.mongodb.org/mongo-driver/bson"
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+)
 
 type Position struct {
 	X int `json:"x"`
@@ -8,22 +12,21 @@ type Position struct {
 }
 
 type Tree struct {
-	ID       int      `json:"id"`
-	Type     string   `json:"type"`
-	Age      int      `json:"age"`
-	MeadowId int      `json:"meadowId"`
-	Position Position `json:"position"`
+	ID        int       `json:"id"`
+	PlantDate time.Time `json:"plantDate"`
+	MeadowId  int       `json:"meadowId"`
+	Position  Position  `json:"position"`
+	Type      string    `json:"type"`
 }
 
-func TransformTreeToBson(tree Tree) bson.D {
-	return bson.D{
-		{Key: "ID", Value: tree.ID},
-		{Key: "Type", Value: tree.Type},
-		{Key: "Age", Value: tree.Age},
-		{Key: "MeadowId", Value: tree.MeadowId},
-		{Key: "Position", Value: bson.D{
-			{Key: "X", Value: tree.Position.X},
-			{Key: "Y", Value: tree.Position.Y}}},
+func (p *Position) Scan(value any) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to convert position to []byte")
 	}
 
+	if err := json.Unmarshal(bytes, p); err != nil {
+		return fmt.Errorf("failed to unmarshal position: %w", err)
+	}
+	return nil
 }

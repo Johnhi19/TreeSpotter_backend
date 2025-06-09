@@ -10,10 +10,8 @@ import (
 
 	"github.com/Johnhi19/TreeSpotter_backend/models"
 	_ "github.com/go-sql-driver/mysql"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var client *mongo.Client
 var db *sql.DB
 
 func Connect(txtFile string) {
@@ -34,7 +32,7 @@ func Connect(txtFile string) {
 	}
 
 	// MySQL connection string: username:password@tcp(host:port)/database
-	dsn := fmt.Sprintf("%s:%s@tcp(localhost:3306)/treeSpotter", username, password)
+	dsn := fmt.Sprintf("%s:%s@tcp(localhost:3306)/treeSpotter?parseTime=true", username, password)
 	db, err = sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatal(err)
@@ -51,7 +49,7 @@ func Connect(txtFile string) {
 func FindAllMeadows() []models.Meadow {
 	var meadows []models.Meadow
 
-	rows, err := db.Query("SELECT * FROM Meadow")
+	rows, err := db.Query("SELECT ID, Location, Name, Size, TreeIds FROM Meadow")
 	if err != nil {
 		panic(err)
 	}
@@ -59,7 +57,7 @@ func FindAllMeadows() []models.Meadow {
 
 	for rows.Next() {
 		var med models.Meadow
-		if err := rows.Scan(&med.ID, &med.Name, &med.TreeIds, &med.Size, &med.Location); err != nil {
+		if err := rows.Scan(&med.ID, &med.Location, &med.Name, &med.Size, &med.TreeIds); err != nil {
 			panic(err)
 		}
 		meadows = append(meadows, med)
@@ -73,7 +71,7 @@ func FindAllMeadows() []models.Meadow {
 func FindAllTreesForMeadow(meadowId int) []models.Tree {
 	var trees []models.Tree
 
-	rows, err := db.Query("SELECT * FROM Tree WHERE MeadowId = ?", meadowId)
+	rows, err := db.Query("SELECT ID, PlantDate, MeadowId, Position, Type FROM Tree WHERE MeadowId = ?", meadowId)
 	if err != nil {
 		panic(err)
 	}
@@ -81,7 +79,7 @@ func FindAllTreesForMeadow(meadowId int) []models.Tree {
 
 	for rows.Next() {
 		var tree models.Tree
-		if err := rows.Scan(&tree.ID, &tree.Type, &tree.Age, &tree.MeadowId, &tree.Position); err != nil {
+		if err := rows.Scan(&tree.ID, &tree.PlantDate, &tree.MeadowId, &tree.Position, &tree.Type); err != nil {
 			panic(err)
 		}
 		trees = append(trees, tree)
@@ -108,7 +106,7 @@ func InsertOneMeadow(meadow models.Meadow) any {
 
 func InsertOneTree(tree models.Tree) any {
 	result, err := db.Exec("INSERT INTO Tree (Type, Age, MeadowId, Position) VALUES (?, ?, ?, ?)",
-		tree.Type, tree.Age, tree.MeadowId, tree.Position)
+		tree.Type, tree.PlantDate, tree.MeadowId, tree.Position)
 	if err != nil {
 		panic(err)
 	}
@@ -123,8 +121,8 @@ func InsertOneTree(tree models.Tree) any {
 func FindOneMeadowById(meadowId int) models.Meadow {
 	var meadow models.Meadow
 
-	row := db.QueryRow("SELECT * FROM Meadow WHERE ID = ?", meadowId)
-	if err := row.Scan(&meadow.ID, &meadow.Name, &meadow.TreeIds, &meadow.Size, &meadow.Location); err != nil {
+	row := db.QueryRow("SELECT ID, Location, Name, Size, TreeIds FROM Meadow WHERE ID = ?", meadowId)
+	if err := row.Scan(&meadow.ID, &meadow.Location, &meadow.Name, &meadow.Size, &meadow.TreeIds); err != nil {
 		if err == sql.ErrNoRows {
 			fmt.Println("No meadow found with ID:", meadowId)
 			return meadow
@@ -138,12 +136,13 @@ func FindOneMeadowById(meadowId int) models.Meadow {
 func FindOneTreeById(treeId int) models.Tree {
 	var tree models.Tree
 
-	row := db.QueryRow("SELECT * FROM Tree WHERE ID = ?", treeId)
-	if err := row.Scan(&tree.ID, &tree.Type, &tree.Age, &tree.MeadowId, &tree.Position); err != nil {
+	row := db.QueryRow("SELECT ID, PlantDate, MeadowId, Position, Type FROM Tree WHERE ID = ?", treeId)
+	if err := row.Scan(&tree.ID, &tree.PlantDate, &tree.MeadowId, &tree.Position, &tree.Type); err != nil {
 		if err == sql.ErrNoRows {
 			fmt.Println("No tree found with ID:", treeId)
 			return tree
 		}
+		fmt.Printf("Type of tree.PlantDate: %T\n", tree.PlantDate)
 		panic(err)
 	}
 	fmt.Println("Found tree:", tree)
