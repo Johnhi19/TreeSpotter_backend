@@ -91,8 +91,8 @@ func FindAllTreesForMeadow(meadowId int) []models.Tree {
 }
 
 func InsertOneMeadow(meadow models.Meadow) any {
-	result, err := db.Exec("INSERT INTO Meadow (Name, TreeIds, Size, Location) VALUES (?, ?, ?, ?)",
-		meadow.Name, meadow.TreeIds, meadow.Size, meadow.Location)
+	result, err := db.Exec("INSERT INTO Meadow (Location, Name, Size, TreeIds) VALUES (?, ?, ?, ?)",
+		meadow.Location, meadow.Name, meadow.Size, meadow.TreeIds)
 	if err != nil {
 		panic(err)
 	}
@@ -105,8 +105,8 @@ func InsertOneMeadow(meadow models.Meadow) any {
 }
 
 func InsertOneTree(tree models.Tree) any {
-	result, err := db.Exec("INSERT INTO Tree (Type, Age, MeadowId, Position) VALUES (?, ?, ?, ?)",
-		tree.Type, tree.PlantDate, tree.MeadowId, tree.Position)
+	result, err := db.Exec("INSERT INTO Tree (PlantDate, MeadowId, Position, Type) VALUES (?, ?, ?, ?)",
+		tree.PlantDate, tree.MeadowId, tree.Position, tree.Type)
 	if err != nil {
 		panic(err)
 	}

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -29,4 +30,8 @@ func (p *Position) Scan(value any) error {
 		return fmt.Errorf("failed to unmarshal position: %w", err)
 	}
 	return nil
+}
+
+func (p Position) Value() (driver.Value, error) {
+	return json.Marshal(p)
 }

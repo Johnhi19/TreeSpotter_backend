@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 )
@@ -21,4 +22,8 @@ func (s *IntSlize) Scan(value any) error {
 		return fmt.Errorf("failed to convert DB value to []byte")
 	}
 	return json.Unmarshal(bytes, s)
+}
+
+func (s IntSlize) Value() (driver.Value, error) {
+	return json.Marshal(s)
 }
