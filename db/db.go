@@ -69,9 +69,25 @@ func FindAllMeadows() []models.Meadow {
 }
 
 func FindAllTreesForMeadow(meadowId int) []models.Tree {
+	meadow := FindOneMeadowById(meadowId)
+
+	if len(meadow.TreeIds) == 0 {
+		return []models.Tree{}
+	}
+
 	var trees []models.Tree
 
-	rows, err := db.Query("SELECT ID, PlantDate, MeadowId, Position, Type FROM Tree WHERE MeadowId = ?", meadowId)
+	placeholders := make([]string, len(meadow.TreeIds))
+	args := make([]any, len(meadow.TreeIds))
+	for i, treeId := range meadow.TreeIds {
+		placeholders[i] = "?"
+		args[i] = treeId
+	}
+
+	query := fmt.Sprintf("SELECT ID, PlantDate, MeadowId, Position, Type FROM Tree WHERE ID IN (%s)",
+		strings.Join(placeholders, ","))
+
+	rows, err := db.Query(query, args...)
 	if err != nil {
 		panic(err)
 	}
