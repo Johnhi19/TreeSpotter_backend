@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -95,7 +96,17 @@ func insertTree(c *gin.Context) {
 		return
 	}
 
+	// Insert the tree
 	insertedID := db.InsertOneTree(tree)
+
+	// Update the meadow's TreeIds list
+	if err := db.UpdateMeadowTreeIds(tree.MeadowId, insertedID); err != nil {
+		fmt.Printf("ERROR executing UPDATE: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Tree inserted but failed to update meadow"})
+		return
+	}
+
+	fmt.Printf("Updated Meadow %d with new Tree ID %d\n", tree.MeadowId, insertedID)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Tree inserted successfully",
