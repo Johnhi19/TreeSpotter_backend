@@ -25,8 +25,7 @@ func main() {
 	router.GET("/meadows/:id/trees", getTreesOfMeadow)
 	router.GET("/trees/:id", findTreeByID)
 	router.POST("/trees", insertTree)
-
-	router.Run("localhost:8080")
+	router.DELETE("/trees/:id", removeTree)
 
 	go func() {
 		if err := router.Run("localhost:8080"); err != nil {
@@ -99,8 +98,8 @@ func insertTree(c *gin.Context) {
 	// Insert the tree
 	insertedID := db.InsertOneTree(tree)
 
-	// Update the meadow's TreeIds list
-	if err := db.UpdateMeadowTreeIds(tree.MeadowId, insertedID); err != nil {
+	// Update the meadow's TreeIds list by adding the tree ID
+	if err := db.UpdateMeadowTreeIds(tree.MeadowId, insertedID, false); err != nil {
 		fmt.Printf("ERROR executing UPDATE: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Tree inserted but failed to update meadow"})
 		return
@@ -111,6 +110,32 @@ func insertTree(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Tree inserted successfully",
 		"id":      insertedID,
+	})
+}
+
+func removeTree(c *gin.Context) {
+	// Get tree ID from URL parameter
+	id := c.Param("id")
+	intID, err := strconv.Atoi(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	fmt.Printf("Attempting to delete tree with ID: %d\n", intID)
+
+	// Delete the tree (which also updates the meadow)
+	if err := db.DeleteOneTree(intID); err != nil {
+		fmt.Printf("ERROR deleting tree: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	fmt.Printf("Tree %d deleted successfully\n", intID)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Tree deleted successfully",
+		"id":      intID,
 	})
 }
 
