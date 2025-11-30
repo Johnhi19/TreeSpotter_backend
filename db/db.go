@@ -120,20 +120,6 @@ func InsertOneMeadow(meadow models.Meadow) any {
 	return id
 }
 
-func InsertOneTree(tree models.Tree) int64 {
-	result, err := db.Exec("INSERT INTO Tree (PlantDate, MeadowId, Position, Type) VALUES (?, ?, ?, ?)",
-		tree.PlantDate, tree.MeadowId, tree.Position, tree.Type)
-	if err != nil {
-		panic(err)
-	}
-	id, err := result.LastInsertId()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("Inserted a tree with ID:", id)
-	return id
-}
-
 func FindOneMeadowById(meadowId int) models.Meadow {
 	var meadow models.Meadow
 
@@ -147,6 +133,59 @@ func FindOneMeadowById(meadowId int) models.Meadow {
 	}
 	fmt.Println("Found meadow:", meadow)
 	return meadow
+}
+
+func UpdateMeadowTreeIds(meadowId int, treeId int64, shouldDelete bool) error {
+	// Get current meadow
+	meadow := FindOneMeadowById(meadowId)
+
+	fmt.Printf("Current TreeIds for meadow %d: %v\n", meadowId, meadow.TreeIds)
+
+	// Check whether to add or remove the tree ID
+	if shouldDelete {
+		newTreeIds := make([]int, 0, len(meadow.TreeIds))
+		for _, id := range meadow.TreeIds {
+			if id != int(treeId) {
+				newTreeIds = append(newTreeIds, id)
+			}
+		}
+		meadow.TreeIds = newTreeIds
+	} else {
+		meadow.TreeIds = append(meadow.TreeIds, int(treeId))
+	}
+
+	fmt.Printf("New TreeIds for meadow %d: %v\n", meadowId, meadow.TreeIds)
+
+	// Value() method will automatically be called for TreeIds
+	result, err := db.Exec("UPDATE Meadow SET TreeIds = ? WHERE ID = ?", meadow.TreeIds, meadowId)
+	if err != nil {
+		fmt.Printf("ERROR executing UPDATE: %v\n", err)
+		return err
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	fmt.Printf("UPDATE affected %d rows\n", rowsAffected)
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("no meadow found with ID %d", meadowId)
+	}
+
+	fmt.Printf("Successfully updated meadow %d with tree ID: %d\n", meadowId, treeId)
+	return nil
+}
+
+func InsertOneTree(tree models.Tree) int64 {
+	result, err := db.Exec("INSERT INTO Tree (PlantDate, MeadowId, Position, Type) VALUES (?, ?, ?, ?)",
+		tree.PlantDate, tree.MeadowId, tree.Position, tree.Type)
+	if err != nil {
+		panic(err)
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Inserted a tree with ID:", id)
+	return id
 }
 
 func FindOneTreeById(treeId int) models.Tree {
@@ -165,32 +204,34 @@ func FindOneTreeById(treeId int) models.Tree {
 	return tree
 }
 
-func UpdateMeadowTreeIds(meadowId int, treeId int64) error {
-	// Get current meadow
-	meadow := FindOneMeadowById(meadowId)
+func DeleteOneTree(treeId int) error {
+	// First, get the tree to know which meadow it belongs to
+	tree := FindOneTreeById(treeId)
+	if tree.ID == 0 {
+		return fmt.Errorf("tree with ID %d not found", treeId)
+	}
 
-	fmt.Printf("Current TreeIds for meadow %d: %v\n", meadowId, meadow.TreeIds)
+	meadowId := tree.MeadowId
 
-	// Append new tree ID
-	meadow.TreeIds = append(meadow.TreeIds, int(treeId))
-
-	fmt.Printf("New TreeIds for meadow %d: %v\n", meadowId, meadow.TreeIds)
-
-	// Value() method will automatically be called for TreeIds
-	result, err := db.Exec("UPDATE Meadow SET TreeIds = ? WHERE ID = ?", meadow.TreeIds, meadowId)
+	// Delete the tree from the database
+	result, err := db.Exec("DELETE FROM Tree WHERE ID = ?", treeId)
 	if err != nil {
-		fmt.Printf("ERROR executing UPDATE: %v\n", err)
-		return err
+		return fmt.Errorf("failed to delete tree: %w", err)
 	}
 
 	rowsAffected, _ := result.RowsAffected()
-	fmt.Printf("UPDATE affected %d rows\n", rowsAffected)
-
 	if rowsAffected == 0 {
-		return fmt.Errorf("no meadow found with ID %d", meadowId)
+		return fmt.Errorf("no tree found with ID %d", treeId)
 	}
 
-	fmt.Printf("Successfully updated meadow %d with new tree ID: %d\n", meadowId, treeId)
+	fmt.Printf("Deleted tree with ID: %d\n", treeId)
+
+	// Remove tree ID from meadow's TreeIds
+	if err := UpdateMeadowTreeIds(meadowId, int64(treeId), true); err != nil {
+		fmt.Printf("Warning: Tree deleted but failed to update meadow: %v\n", err)
+		return err
+	}
+
 	return nil
 }
 
