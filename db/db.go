@@ -135,6 +135,35 @@ func FindOneMeadowById(meadowId int) models.Meadow {
 	return meadow
 }
 
+func DeleteOneMeadow(meadowId int) error {
+	// First, get all tree IDs associated with the meadow
+	meadow := FindOneMeadowById(meadowId)
+	if meadow.ID == 0 {
+		return fmt.Errorf("meadow with ID %d not found", meadowId)
+	}
+
+	// Delete all associated trees
+	for _, treeId := range meadow.TreeIds {
+		if err := DeleteOneTree(treeId); err != nil {
+			fmt.Printf("Warning: Failed to delete tree ID %d: %v\n", treeId, err)
+		}
+	}
+
+	// Now delete the meadow itself
+	result, err := db.Exec("DELETE FROM Meadow WHERE ID = ?", meadowId)
+	if err != nil {
+		return fmt.Errorf("failed to delete meadow: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("no meadow found with ID %d", meadowId)
+	}
+
+	fmt.Printf("Deleted meadow with ID: %d\n", meadowId)
+	return nil
+}
+
 func UpdateMeadowTreeIds(meadowId int, treeId int64, shouldDelete bool) error {
 	// Get current meadow
 	meadow := FindOneMeadowById(meadowId)
