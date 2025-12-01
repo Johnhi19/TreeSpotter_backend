@@ -144,7 +144,7 @@ func DeleteOneMeadow(meadowId int) error {
 
 	// Delete all associated trees
 	for _, treeId := range meadow.TreeIds {
-		if err := DeleteOneTree(treeId); err != nil {
+		if err := deleteTreeOnly(treeId); err != nil {
 			fmt.Printf("Warning: Failed to delete tree ID %d: %v\n", treeId, err)
 		}
 	}
@@ -233,16 +233,8 @@ func FindOneTreeById(treeId int) models.Tree {
 	return tree
 }
 
-func DeleteOneTree(treeId int) error {
-	// First, get the tree to know which meadow it belongs to
-	tree := FindOneTreeById(treeId)
-	if tree.ID == 0 {
-		return fmt.Errorf("tree with ID %d not found", treeId)
-	}
-
-	meadowId := tree.MeadowId
-
-	// Delete the tree from the database
+// Deletes only the tree from the database, does not update meadow's TreeIds
+func deleteTreeOnly(treeId int) error {
 	result, err := db.Exec("DELETE FROM Tree WHERE ID = ?", treeId)
 	if err != nil {
 		return fmt.Errorf("failed to delete tree: %w", err)
@@ -254,6 +246,23 @@ func DeleteOneTree(treeId int) error {
 	}
 
 	fmt.Printf("Deleted tree with ID: %d\n", treeId)
+	return nil
+}
+
+// Deletes the tree and updates the meadow's TreeIds accordingly
+func DeleteOneTree(treeId int) error {
+	// First, get the tree to know which meadow it belongs to
+	tree := FindOneTreeById(treeId)
+	if tree.ID == 0 {
+		return fmt.Errorf("tree with ID %d not found", treeId)
+	}
+
+	meadowId := tree.MeadowId
+
+	// Delete the tree from the database
+	if err := deleteTreeOnly(treeId); err != nil {
+		return err
+	}
 
 	// Remove tree ID from meadow's TreeIds
 	if err := UpdateMeadowTreeIds(meadowId, int64(treeId), true); err != nil {
