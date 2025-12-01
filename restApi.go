@@ -21,11 +21,14 @@ func main() {
 
 	router.GET("/meadows/:id", findMeadowByID)
 	router.GET("/meadows", getBasicInfoOfAllMeadows)
-	router.POST("/meadows", insertMeadow)
 	router.GET("/meadows/:id/trees", getTreesOfMeadow)
 	router.GET("/trees/:id", findTreeByID)
+
+	router.POST("/meadows", insertMeadow)
 	router.POST("/trees", insertTree)
+
 	router.DELETE("/trees/:id", removeTree)
+	router.DELETE("/meadows/:id", removeMeadow)
 
 	go func() {
 		if err := router.Run("localhost:8080"); err != nil {
@@ -71,6 +74,32 @@ func insertMeadow(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Meadow inserted successfully",
 		"id":      insertedID,
+	})
+}
+
+func removeMeadow(c *gin.Context) {
+	// Get meadow ID from URL parameter
+	id := c.Param("id")
+	intID, err := strconv.Atoi(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	fmt.Printf("Attempting to delete meadow with ID: %d\n", intID)
+
+	// Delete the meadow (which also updates the trees)
+	if err := db.DeleteOneMeadow(intID); err != nil {
+		fmt.Printf("ERROR deleting meadow: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	fmt.Printf("Meadow %d deleted successfully\n", intID)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Meadow deleted successfully",
+		"id":      intID,
 	})
 }
 
