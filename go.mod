@@ -54,6 +54,7 @@ require (
 )
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	golang.org/x/text v0.31.0 // indirect
 	gorm.io/gorm v1.25.12
 	rsc.io/sampler v1.3.0 // indirect
