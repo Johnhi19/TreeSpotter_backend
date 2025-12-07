@@ -9,6 +9,9 @@ import (
 	"syscall"
 
 	"github.com/Johnhi19/TreeSpotter_backend/db"
+	"github.com/Johnhi19/TreeSpotter_backend/handlers"
+	"github.com/Johnhi19/TreeSpotter_backend/middleware"
+
 	"github.com/Johnhi19/TreeSpotter_backend/models"
 	"github.com/gin-gonic/gin"
 )
@@ -19,16 +22,28 @@ func main() {
 
 	router := gin.Default()
 
-	router.GET("/meadows/:id", findMeadowByID)
-	router.GET("/meadows", getBasicInfoOfAllMeadows)
-	router.GET("/meadows/:id/trees", getTreesOfMeadow)
-	router.GET("/trees/:id", findTreeByID)
+	// Public (no auth)
+	public := router.Group("/")
+	{
+		public.POST("/login", handlers.Login)
+		public.POST("/register", handlers.Register)
+	}
 
-	router.POST("/meadows", insertMeadow)
-	router.POST("/trees", insertTree)
+	// Protected (requires JWT)
+	protected := router.Group("/")
+	protected.Use(middleware.AuthMiddleware())
+	{
+		protected.GET("/meadows/:id", findMeadowByID)
+		protected.GET("/meadows", getBasicInfoOfAllMeadows)
+		protected.GET("/meadows/:id/trees", getTreesOfMeadow)
+		protected.GET("/trees/:id", findTreeByID)
 
-	router.DELETE("/trees/:id", removeTree)
-	router.DELETE("/meadows/:id", removeMeadow)
+		protected.POST("/meadows", insertMeadow)
+		protected.POST("/trees", insertTree)
+
+		protected.DELETE("/trees/:id", removeTree)
+		protected.DELETE("/meadows/:id", removeMeadow)
+	}
 
 	go func() {
 		if err := router.Run("localhost:8080"); err != nil {
