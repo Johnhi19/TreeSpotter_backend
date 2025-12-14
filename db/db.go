@@ -69,13 +69,13 @@ func FindAllMeadowsForUser(userID int) []models.Meadow {
 }
 
 func FindAllTreesForMeadow(meadowId int, userID int) []models.Tree {
+	var trees []models.Tree
+
 	meadow := FindOneMeadowByIdForUser(meadowId, userID)
 
 	if len(meadow.TreeIds) == 0 {
 		return []models.Tree{}
 	}
-
-	var trees []models.Tree
 
 	placeholders := make([]string, len(meadow.TreeIds))
 	args := make([]any, len(meadow.TreeIds))
