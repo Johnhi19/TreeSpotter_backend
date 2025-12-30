@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	db.Connect("credentialsMySql.txt")
+	db.Connect()
 	defer db.Disconnect()
 
 	router := gin.Default()

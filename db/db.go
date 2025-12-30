@@ -1,7 +1,6 @@
 package db
 
 import (
-	"bufio"
 	"database/sql"
 	"fmt"
 	"log"
@@ -14,25 +13,19 @@ import (
 
 var DB *sql.DB
 
-func Connect(txtFile string) {
-	file, err := os.Open(txtFile)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
+func Connect() {
 
-	scanner := bufio.NewScanner(file)
-	scanner.Scan()
-	username := strings.TrimSpace(scanner.Text())
-	scanner.Scan()
-	password := strings.TrimSpace(scanner.Text())
+	// get connection properties for the mysql db
+	dsn := fmt.Sprintf(
+		"%s:%s@tcp(%s:%s)/%s?parseTime=true",
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_NAME"),
+	)
 
-	if err := scanner.Err(); err != nil {
-		panic(err)
-	}
-
-	// MySQL connection string: username:password@tcp(host:port)/database
-	dsn := fmt.Sprintf("%s:%s@tcp(localhost:3306)/treeSpotter?parseTime=true", username, password)
+	var err error
 	DB, err = sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatal(err)
@@ -49,7 +42,7 @@ func Connect(txtFile string) {
 func FindAllMeadowsForUser(userID int) []models.Meadow {
 	var meadows []models.Meadow
 
-	rows, err := DB.Query("SELECT ID, Location, Name, Size, TreeIds FROM Meadow WHERE user_id = ?", userID)
+	rows, err := DB.Query("SELECT ID, Location, Name, Size, TreeIds FROM meadows WHERE user_id = ?", userID)
 	if err != nil {
 		panic(err)
 	}
@@ -84,7 +77,7 @@ func FindAllTreesForMeadow(meadowId int, userID int) []models.Tree {
 		args[i] = treeId
 	}
 
-	query := fmt.Sprintf("SELECT ID, PlantDate, MeadowId, Position, Type FROM Tree WHERE ID IN (%s) AND user_id = ?",
+	query := fmt.Sprintf("SELECT ID, PlantDate, MeadowId, Position, Type FROM trees WHERE ID IN (%s) AND user_id = ?",
 		strings.Join(placeholders, ","))
 
 	args = append(args, userID)
@@ -109,7 +102,7 @@ func FindAllTreesForMeadow(meadowId int, userID int) []models.Tree {
 }
 
 func InsertOneMeadowForUser(meadow models.Meadow, userID int) any {
-	result, err := DB.Exec("INSERT INTO Meadow (Location, Name, Size, TreeIds, user_id) VALUES (?, ?, ?, ?, ?)",
+	result, err := DB.Exec("INSERT INTO meadows (Location, Name, Size, TreeIds, user_id) VALUES (?, ?, ?, ?, ?)",
 		meadow.Location, meadow.Name, meadow.Size, meadow.TreeIds, userID)
 	if err != nil {
 		panic(err)
@@ -125,7 +118,7 @@ func InsertOneMeadowForUser(meadow models.Meadow, userID int) any {
 func FindOneMeadowByIdForUser(meadowId int, userID int) models.Meadow {
 	var meadow models.Meadow
 
-	row := DB.QueryRow("SELECT ID, Location, Name, Size, TreeIds FROM Meadow WHERE ID = ? AND user_id = ?", meadowId, userID)
+	row := DB.QueryRow("SELECT ID, Location, Name, Size, TreeIds FROM meadows WHERE ID = ? AND user_id = ?", meadowId, userID)
 	if err := row.Scan(&meadow.ID, &meadow.Location, &meadow.Name, &meadow.Size, &meadow.TreeIds); err != nil {
 		if err == sql.ErrNoRows {
 			fmt.Println("No meadow found with ID:", meadowId)
@@ -152,7 +145,7 @@ func DeleteOneMeadowForUser(meadowId int, userID int) error {
 	}
 
 	// Now delete the meadow itself
-	result, err := DB.Exec("DELETE FROM Meadow WHERE ID = ? and user_id = ?", meadowId, userID)
+	result, err := DB.Exec("DELETE FROM meadows WHERE ID = ? and user_id = ?", meadowId, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete meadow: %w", err)
 	}
@@ -188,7 +181,7 @@ func UpdateMeadowTreeIdsForUser(meadowId int, treeId int64, shouldDelete bool, u
 	fmt.Printf("New TreeIds for meadow %d: %v\n", meadowId, meadow.TreeIds)
 
 	// Value() method will automatically be called for TreeIds
-	result, err := DB.Exec("UPDATE Meadow SET TreeIds = ? WHERE ID = ? AND user_id = ?", meadow.TreeIds, meadowId, userID)
+	result, err := DB.Exec("UPDATE meadows SET TreeIds = ? WHERE ID = ? AND user_id = ?", meadow.TreeIds, meadowId, userID)
 	if err != nil {
 		fmt.Printf("ERROR executing UPDATE: %v\n", err)
 		return err
@@ -206,7 +199,7 @@ func UpdateMeadowTreeIdsForUser(meadowId int, treeId int64, shouldDelete bool, u
 }
 
 func InsertOneTreeForUser(tree models.Tree, userID int) int64 {
-	result, err := DB.Exec("INSERT INTO Tree (PlantDate, MeadowId, Position, Type, user_id) VALUES (?, ?, ?, ?, ?)",
+	result, err := DB.Exec("INSERT INTO trees (PlantDate, MeadowId, Position, Type, user_id) VALUES (?, ?, ?, ?, ?)",
 		tree.PlantDate, tree.MeadowId, tree.Position, tree.Type, userID)
 	if err != nil {
 		panic(err)
@@ -222,7 +215,7 @@ func InsertOneTreeForUser(tree models.Tree, userID int) int64 {
 func FindOneTreeById(treeId int, userID int) models.Tree {
 	var tree models.Tree
 
-	row := DB.QueryRow("SELECT ID, PlantDate, MeadowId, Position, Type FROM Tree WHERE ID = ? AND user_id = ?", treeId, userID)
+	row := DB.QueryRow("SELECT ID, PlantDate, MeadowId, Position, Type FROM trees WHERE ID = ? AND user_id = ?", treeId, userID)
 	if err := row.Scan(&tree.ID, &tree.PlantDate, &tree.MeadowId, &tree.Position, &tree.Type); err != nil {
 		if err == sql.ErrNoRows {
 			fmt.Printf("No tree found with ID: %d and user ID: %d\n", treeId, userID)
@@ -237,7 +230,7 @@ func FindOneTreeById(treeId int, userID int) models.Tree {
 
 // Deletes only the tree from the database, does not update meadow's TreeIds
 func deleteTreeOnly(treeId int, userID int) error {
-	result, err := DB.Exec("DELETE FROM Tree WHERE ID = ? AND user_id = ?", treeId, userID)
+	result, err := DB.Exec("DELETE FROM trees WHERE ID = ? AND user_id = ?", treeId, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete tree: %w", err)
 	}
