@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"time"
 
@@ -25,10 +26,17 @@ func Register(c *gin.Context) {
 		return
 	}
 
+	// Ensure DB is connected
+	if database.DB == nil {
+		c.JSON(500, gin.H{"error": "database not initialized"})
+		return
+	}
+
 	// Check if username exists
 	var exists string
-	err := database.DB.QueryRow("SELECT Username FROM User WHERE Username = ?", user.Username).Scan(&exists)
+	err := database.DB.QueryRow("SELECT username FROM users WHERE username = ?", user.Username).Scan(&exists)
 	if err != sql.ErrNoRows && err != nil {
+		log.Println("REGISTER ERROR:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
@@ -42,7 +50,7 @@ func Register(c *gin.Context) {
 
 	// Insert into DB
 	_, err = database.DB.Exec(
-		"INSERT INTO User (Username, Password) VALUES (?, ?)",
+		"INSERT INTO users (username, password) VALUES (?, ?)",
 		user.Username,
 		string(hashed),
 	)
@@ -67,9 +75,15 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// Ensure DB is connected
+	if database.DB == nil {
+		c.JSON(500, gin.H{"error": "database not initialized"})
+		return
+	}
+
 	// Get user by username
 	err := database.DB.QueryRow(
-		"SELECT ID, Username, Password FROM User WHERE Username = ?",
+		"SELECT ID, username, password FROM users WHERE username = ?",
 		user.Username,
 	).Scan(&stored.ID, &stored.Username, &stored.Password)
 
