@@ -1,20 +1,29 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.24
+# Use multi-stage builds for smaller final image size
+# Build stage
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-# copy all files from current directory to working directory
-COPY . .
-
-# download dependencies
+COPY go.mod go.sum ./
 RUN go mod download
 
-# build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o /treespotter-backend
+COPY . .
 
-# Expose port 8080
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /treespotter-backend
+
+# Release stage
+FROM gcr.io/distroless/base-debian11 AS release-stage
+
+WORKDIR /
+
+# Copy the built binary from the builder stage
+COPY --from=builder /treespotter-backend /treespotter-backend
+
 EXPOSE 8080
 
-# Run the application
-CMD ["/treespotter-backend"]
+# Run as non-root user for better security
+USER nonroot:nonroot
+
+ENTRYPOINT ["/treespotter-backend"]
