@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	database "github.com/Johnhi19/TreeSpotter_backend/db"
@@ -13,7 +14,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var jwtSecret = []byte("SUPER_SECRET_KEY")
+var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 
 // ----------------------
 // Register
