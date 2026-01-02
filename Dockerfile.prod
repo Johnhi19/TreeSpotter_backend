@@ -11,7 +11,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /treespotter-backend
+RUN CGO_ENABLED=0 GOOS=linux go build -o /treespotter-backend
 
 # Release stage
 FROM gcr.io/distroless/base-debian11 AS release-stage
